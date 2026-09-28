@@ -1,0 +1,1605 @@
+/** 
+ * @description     : Use this class to create leads from JSW Lead Creation LWC
+ * @author          : Adesh Gaikwad
+ * @group           : Lead Management / Territory Management
+ * @test class      : JSWLeadCreationControllerTest
+ * @last modified on: 16-08-2026
+ * @last modified by: Adesh Gaiwad
+ */
+
+public with sharing class JSWLeadCreationController {
+    private static final String TRACK_PJT = System.Label.SFA_PJT_TrackPJT;
+    private static final String TRACK_DIT = System.Label.SFA_PJT_TrackDIT;
+    private static final String ASSIGNMENT_TYPE_LEAD = System.Label.SFA_PJT_AssignmentTypeLead;
+    private static final String DEFAULT_LEAD_ACCOUNT_TYPE = System.Label.SFA_PJT_DefaultLeadAccountType;
+    private static final String DEFAULT_COUNTRY_CODE = System.Label.SFA_PJT_DefaultCountryCode;
+    private static final String UNMAPPED_PIN_QUEUE_DEV_NAME = System.Label.SFA_PJT_UnmappedPinQueueDeveloperName;
+    private static final String UNMAPPED_PIN_TEMPLATE_DEV_NAME = System.Label.SFA_PJT_UnmappedPinTemplateDeveloperName;
+    private static final String LEAD_COOWNER_TEMPLATE_DEV_NAME = System.Label.SFA_PJT_LeadCoOwnerTemplateDeveloperName;
+    private static final String LEAD_PSM_TEMPLATE_DEV_NAME = System.Label.SFA_PJT_LeadPSMTemplateDeveloperName;
+    private static final String DEFAULT_LEAD_TYPE = System.Label.SFA_PJT_DefaultLeadType;
+    private static final String DEFAULT_STATUS = System.Label.SFA_PJT_DefaultLeadStatus;
+    private static final String NURTURING_STATUS = System.Label.SFA_PJT_DefaultLeadStatus;
+    private static final Set<String> PROJECT_SALES_OFFICER_PROFILE_NAMES = new Set<String>{
+        System.Label.SFA_PJT_ProjectSalesOfficerProfileName,
+        System.Label.SFA_PJT_TerritoryTechSalesInchargeProfileName
+    };
+    private static final String ACCOUNT_RT_DEALER = System.Label.SFA_PJT_AccountRecordTypeDealer;
+    private static final String ACCOUNT_RT_CONTRACTOR = System.Label.SFA_PJT_AccountRecordTypeContractor;
+    private static final String ACCOUNT_RT_SPECIFIER = System.Label.SFA_PJT_AccountRecordTypeSpecifier;
+    private static final Set<String> ACCOUNT_RT_DEVELOPER_NAMES = new Set<String>{
+        ACCOUNT_RT_DEALER,
+        ACCOUNT_RT_CONTRACTOR,
+        ACCOUNT_RT_SPECIFIER
+    };
+    private static final String WARNING_MESSAGE =
+        System.Label.SFA_PJT_TerritoryWarningMessage;
+    private static final String ORG_WIDE_EMAIL_FALLBACK_DISPLAY_NAME = 'JSWNotifications';
+    private static final String LEAD_SOURCE_CONTRACTOR_RECOMMENDED = System.Label.SFA_PJT_LeadSourceContractorRecommended;
+    private static final String LEAD_SOURCE_DEALER_RECOMMENDED = System.Label.SFA_PJT_LeadSourceDealerRecommended;
+    private static final String LEAD_SOURCE_SPECIFIER_RECOMMENDED = System.Label.SFA_PJT_LeadSourceSpecifierRecommended;
+    private static final String LEAD_CREATED_NOTIFICATION_TYPE_DEV_NAME = 'SFA_PJT_Lead_Notification';
+
+
+    public class Option {
+        @AuraEnabled public String label;
+        @AuraEnabled public String value;
+
+        public Option(String label, String value) {
+            this.label = label;
+            this.value = value;
+        }
+    }
+
+    public class InitialDataResponse {
+        //@AuraEnabled public List<Option> leadTypeOptions;
+        @AuraEnabled public List<Option> leadSourceOptions;
+        @AuraEnabled public List<Option> segmentTypeOptions;
+        @AuraEnabled public List<Option> sharingBandOptions;
+        @AuraEnabled public Id dealerRecordTypeId;
+        @AuraEnabled public Id contractorRecordTypeId;
+        @AuraEnabled public Id specifierRecordTypeId;
+        @AuraEnabled public Id keyAccountRecordTypeId;
+        @AuraEnabled public Id otherKeyAccountId;
+        @AuraEnabled public String defaultLeadType;
+        @AuraEnabled public String defaultStatus;
+        @AuraEnabled public Boolean isProjectSalesOfficer;
+    }
+
+    //Used In Assign Territory LWC
+    public class InitialDataResponsewithLeadId {
+        @AuraEnabled public Id leadId;
+        @AuraEnabled public String leadType;
+        @AuraEnabled public String segmentType;
+        @AuraEnabled public String postalCode;
+        @AuraEnabled public String sharingPercentageBand;
+        @AuraEnabled public List<Option> sharingBandOptions;
+        @AuraEnabled public Boolean isProjectSalesOfficer;
+        @AuraEnabled public Id ownerId;
+        @AuraEnabled public Id coOwnerId;
+    }
+
+    public class AccountOption {
+        @AuraEnabled public Id id;
+        @AuraEnabled public String name;
+
+        public AccountOption(Id id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    public class CoOwnerUserOption {
+        @AuraEnabled public Id userId;
+        @AuraEnabled public String userName;
+        @AuraEnabled public Id territory2Id;
+
+        public CoOwnerUserOption(Id userId, String userName , Id territory2Id) {
+            this.userId = userId;
+            this.userName = userName;
+            this.territory2Id = territory2Id;
+        }
+    }
+
+    public class TerritoryValidationResponse {
+        @AuraEnabled public Boolean isValid;
+        @AuraEnabled public Id territoryAssignmentId;
+        @AuraEnabled public String warningMessage;
+        @AuraEnabled public Id territorySfId;
+    }
+
+    public class LeadRecordTypeRoutingResponse {
+        @AuraEnabled public Id recordTypeId;
+        @AuraEnabled public String recordTypeName;
+        @AuraEnabled public String recordTypeDeveloperName;
+        @AuraEnabled public Boolean isProjectRecordType;
+    }
+
+    public class CreateLeadRequest {
+        @AuraEnabled public Id recordTypeId { get; set; }
+        @AuraEnabled public String leadType { get; set; }
+        @AuraEnabled public String company { get; set; }
+        @AuraEnabled public String firstName { get; set; }
+        @AuraEnabled public String lastName { get; set; }
+        @AuraEnabled public String phone { get; set; }
+        @AuraEnabled public String mobilePhone { get; set; }
+        @AuraEnabled public String email { get; set; }
+        @AuraEnabled public String leadSource { get; set; }
+        @AuraEnabled public String isKeyAccount { get; set; }
+        @AuraEnabled public Id keyParentProjectId { get; set; }
+        @AuraEnabled public String otherKeyAccount { get; set; }
+        @AuraEnabled public Id dealerId { get; set; }
+        @AuraEnabled public Id contractorId { get; set; }
+        @AuraEnabled public Id specifierId { get; set; }
+        @AuraEnabled public String contactNumber { get; set; }
+        @AuraEnabled public String segmentType { get; set; }
+        @AuraEnabled public String city { get; set; }
+        @AuraEnabled public String district { get; set; }
+        @AuraEnabled public String stateCode { get; set; }
+        @AuraEnabled public String street { get; set; }
+        @AuraEnabled public String landmark { get; set; }
+        @AuraEnabled public String postalCode { get; set; }
+        @AuraEnabled public String sharingPercentageBand { get; set; }
+        @AuraEnabled public Boolean shareWithCoOwner { get; set; }
+        @AuraEnabled public Id suggestedCoOwnerId { get; set; }
+        @AuraEnabled public String track { get; set; }
+        @AuraEnabled public String typeOfAssignment { get; set; }
+        @AuraEnabled public String leadAccountType { get; set; }
+        @AuraEnabled public Boolean assignToBusinessQueue { get; set; }
+        @AuraEnabled public Id territoryAssignmentId { get; set; }
+        @AuraEnabled public Id territorySfId { get; set; }
+        @AuraEnabled public Id leadId { get; set; }
+        @AuraEnabled public Boolean AssignToCoOwner { get; set; }
+        @AuraEnabled public Boolean CreateDuplicate { get; set; }
+        @AuraEnabled public Boolean isUpdateCoOwnerFlow { get; set; }
+    }
+
+    public class CreateLeadResponse {
+        @AuraEnabled public Id leadId;
+        @AuraEnabled public String message;
+        @AuraEnabled public Id ownerId;
+    }
+
+    public class TerritoryUserSuggestionResponse {
+        @AuraEnabled public Boolean hasSuggestion;
+        @AuraEnabled public Boolean isUnmappedTerritory;
+        @AuraEnabled public Id territoryAssignmentId;
+        @AuraEnabled public Id territorySfId;
+        @AuraEnabled public Id suggestedUserId;
+        @AuraEnabled public String suggestedUserName;
+        @AuraEnabled public String message;
+    }
+
+    private class SaveTerritoryResolution {
+        public Boolean isUnmappedTerritory;
+        public Id territoryAssignmentId;
+        public String areaSfId;
+        public Id assignedUserId;
+    }
+
+    private static Id cachedOrgWideEmailAddressId;
+    private static Id cachedProjectSiteRecordTypeId;
+    private static Boolean projectSiteRecordTypeLookupAttempted = false;
+
+    // Fallback lookup used only when the LWC did not supply a recordTypeId.
+    private static Id getProjectSiteRecordTypeId() {
+        try {
+            if (projectSiteRecordTypeLookupAttempted) {
+                return cachedProjectSiteRecordTypeId;
+            }
+            projectSiteRecordTypeLookupAttempted = true;
+
+            List<RecordType> rtRows = [
+                SELECT Id
+                FROM RecordType
+                WHERE SObjectType = 'Lead'
+                  AND DeveloperName = 'ProjectSite'
+                LIMIT 1
+            ];
+            cachedProjectSiteRecordTypeId = rtRows.isEmpty() ? null : rtRows[0].Id;
+            return cachedProjectSiteRecordTypeId;
+        } catch (Exception ex) {
+            Logger.error('Failed to retrieve Project Site Lead record type.', '', ex)
+                .addTag('Lead Creation');
+            return null;
+        } finally {
+            Logger.saveLog();
+        }
+    }
+
+    //used in Assign terriotry LWC
+    @AuraEnabled
+    public static InitialDataResponsewithLeadId getInitialDatawithLeadId(Id leadId) {
+        List<Lead> rows = [
+            SELECT Id, OwnerId, CoOwner__c, PostalCode, SegmentType__c, SharingPercentageBand__c
+            FROM Lead
+            WHERE Id = :leadId
+            LIMIT 1
+        ];
+        system.debug('Lead rows found: ' + rows.size());
+        System.debug('Lead rows: ' + rows);
+        Lead leadRow = rows.isEmpty() ? null : rows[0];
+        if (leadRow == null) {
+            return null;
+        }
+
+        //ExecutionContext context = resolveExecutionContext(leadRow.OwnerId);
+
+        InitialDataResponsewithLeadId response = new InitialDataResponsewithLeadId();
+        response.leadId = leadRow.Id;
+        response.leadType = System.Label.SFA_PJT_DefaultLeadType;
+        response.segmentType = leadRow.SegmentType__c;
+        response.postalCode = leadRow.PostalCode;
+        response.sharingPercentageBand = leadRow.SharingPercentageBand__c;
+        response.sharingBandOptions = getPicklistValues(Lead.SharingPercentageBand__c.getDescribe());
+        response.isProjectSalesOfficer = isProjectSalesOfficerProfile(getCurrentUserProfileName());
+        response.ownerId = leadRow.OwnerId;
+        response.coOwnerId = leadRow.CoOwner__c;
+        return response;
+    }
+
+    @AuraEnabled
+    public static List<CoOwnerUserOption> getEligibleCoOwnerUsers(Id leadId) {
+        Set<Id> excludeUserIds = new Set<Id>();
+        
+        if (leadId != null) {
+            List<Lead> leadRows = [
+                SELECT OwnerId, CoOwner__c
+                FROM Lead
+                WHERE Id = :leadId
+                LIMIT 1
+            ];
+            if (!leadRows.isEmpty()) {
+                Lead leadRecord = leadRows[0];
+                excludeUserIds.add(leadRecord.OwnerId);
+                if (leadRecord.CoOwner__c != null) {
+                    excludeUserIds.add(leadRecord.CoOwner__c);
+                }
+            }
+        }
+
+        Set<Id> territoryIds = new Set<Id>();
+        for (Territory_Assignment__c assignment : [
+            SELECT TerritorySFId__c
+            FROM Territory_Assignment__c
+            WHERE LeadAccountType__c = 'Project Site'
+              AND TypeOfAssignment__c = 'Lead'
+              AND Track__c = 'SFA_PJT'
+              AND Serviceable__c = true
+              AND TerritorySFId__c != null
+        ]) {
+            try {
+                territoryIds.add((Id) assignment.TerritorySFId__c);
+            } catch (Exception ex) {
+                continue;
+            }
+        }
+
+        List<CoOwnerUserOption> options = new List<CoOwnerUserOption>();
+        if (territoryIds.isEmpty()) {
+            return options;
+        }
+
+        Map<Id, CoOwnerUserOption> optionsByUserId = new Map<Id, CoOwnerUserOption>();
+        for (UserTerritory2Association association : [
+            SELECT UserId, User.Name, Territory2Id
+            FROM UserTerritory2Association
+            WHERE Territory2Id IN :territoryIds
+              AND UserId != null
+              AND UserId NOT IN :excludeUserIds
+        ]) {
+            if (!optionsByUserId.containsKey(association.UserId)) {
+                optionsByUserId.put(
+                    association.UserId,
+                    new CoOwnerUserOption(association.UserId, association.User.Name, association.Territory2Id)
+                );
+            }
+        }
+
+        options.addAll(optionsByUserId.values());
+        return options;
+    }
+
+
+     @AuraEnabled(cacheable=true)
+    public static InitialDataResponse getInitialData() {
+        InitialDataResponse response = new InitialDataResponse();
+        //response.leadTypeOptions = getPicklistValues(Lead.LeadType__c.getDescribe());
+        response.leadSourceOptions = getPicklistValues(Lead.LeadSource.getDescribe());
+        response.segmentTypeOptions = getPicklistValues(Lead.SegmentType__c.getDescribe());
+        response.sharingBandOptions = getPicklistValues(Lead.SharingPercentageBand__c.getDescribe());
+        response.defaultLeadType = DEFAULT_LEAD_TYPE;
+        response.defaultStatus = DEFAULT_STATUS;
+
+        Map<String, Id> accountRTByDevName = new Map<String, Id>();
+        for (RecordType rt : [
+            SELECT Id, DeveloperName
+            FROM RecordType
+            WHERE SObjectType = 'Account'
+              AND DeveloperName IN :ACCOUNT_RT_DEVELOPER_NAMES
+        ]) {
+            accountRTByDevName.put(rt.DeveloperName, rt.Id);
+        }
+
+        response.dealerRecordTypeId = accountRTByDevName.get(ACCOUNT_RT_DEALER);
+        response.contractorRecordTypeId = accountRTByDevName.get(ACCOUNT_RT_CONTRACTOR);
+        response.specifierRecordTypeId = accountRTByDevName.get(ACCOUNT_RT_SPECIFIER);
+                List<RecordType> keyAccountRecordTypes = [
+                        SELECT Id
+                        FROM RecordType
+                        WHERE SObjectType = 'Account'
+                            AND DeveloperName = :System.Label.SFA_PJT_KeyAccountRecordtypeName
+                        LIMIT 1
+                ];
+                response.keyAccountRecordTypeId = keyAccountRecordTypes.isEmpty() ? null : keyAccountRecordTypes[0].Id;
+        response.otherKeyAccountId = getOtherKeyAccountId(false);
+        response.isProjectSalesOfficer = isProjectSalesOfficerProfile(getCurrentUserProfileName());
+
+        return response;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<AccountOption> searchAccounts(String searchTerm, String recordTypeDeveloperName, Integer limitSize) {
+        List<AccountOption> options = new List<AccountOption>();
+        if (String.isBlank(searchTerm) || String.isBlank(recordTypeDeveloperName)) {
+            return options;
+        }
+
+        Integer effectiveLimit = 10;
+        if (limitSize != null && limitSize > 0 && limitSize <= 50) {
+            effectiveLimit = limitSize;
+        }
+
+        List<RecordType> rtRows = [
+            SELECT Id
+            FROM RecordType
+            WHERE SObjectType = 'Account' AND DeveloperName = :recordTypeDeveloperName
+            LIMIT 1
+        ];
+        if (rtRows.isEmpty()) {
+            return options;
+        }
+
+        String likeTerm = '%' + searchTerm.trim() + '%';
+        for (Account acc : [
+            SELECT Id, Name
+            FROM Account
+            WHERE RecordTypeId = :rtRows[0].Id
+              AND Name LIKE :likeTerm
+            ORDER BY Name
+            LIMIT :effectiveLimit
+        ]) {
+            options.add(new AccountOption(acc.Id, acc.Name));
+        }
+
+        return options;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static LeadRecordTypeRoutingResponse getLeadRecordTypeRouting(Id recordTypeId) {
+        LeadRecordTypeRoutingResponse response = new LeadRecordTypeRoutingResponse();
+        response.recordTypeId = recordTypeId;
+        response.isProjectRecordType = false;
+
+        if (recordTypeId == null) {
+            return response;
+        }
+
+        List<RecordType> recordTypes = [
+            SELECT Id, Name, DeveloperName
+            FROM RecordType
+            WHERE Id = :recordTypeId
+              AND SObjectType = 'Lead'
+            LIMIT 1
+        ];
+
+        if (recordTypes.isEmpty()) {
+            return response;
+        }
+
+        RecordType rt = recordTypes[0];
+        response.recordTypeName = rt.Name;
+        response.recordTypeDeveloperName = rt.DeveloperName;
+
+        String devName = String.isBlank(rt.DeveloperName) ? '' : rt.DeveloperName.trim().toLowerCase();
+        String labelName = String.isBlank(rt.Name) ? '' : rt.Name.trim().toLowerCase();
+        response.isProjectRecordType = devName.contains('project') || labelName.contains('project');
+
+        return response;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static LeadRecordTypeRoutingResponse getLeadRecordTypeRoutingForOverride(Id recordTypeId) {
+        if (recordTypeId != null) {
+            return getLeadRecordTypeRouting(recordTypeId);
+        }
+
+        Id resolvedRecordTypeId = getSingleAvailableLeadRecordTypeId();
+        return getLeadRecordTypeRouting(resolvedRecordTypeId);
+    }
+
+    private static Id getSingleAvailableLeadRecordTypeId() {
+        Schema.DescribeSObjectResult leadDescribe = Schema.describeSObjects(new List<String>{ 'Lead' })[0];
+        Map<Id, Schema.RecordTypeInfo> leadRecordTypeInfoById = leadDescribe.getRecordTypeInfosById();
+
+        Integer availableCustomRecordTypeCount = 0;
+        Id singleRecordTypeId;
+
+        for (Schema.RecordTypeInfo info : leadRecordTypeInfoById.values()) {
+            if (info == null || !info.isAvailable() || info.isMaster()) {
+                continue;
+            }
+
+            availableCustomRecordTypeCount++;
+            singleRecordTypeId = info.getRecordTypeId();
+
+            if (availableCustomRecordTypeCount > 1) {
+                return null;
+            }
+        }
+
+        return availableCustomRecordTypeCount == 1 ? singleRecordTypeId : null;
+    }
+
+    @AuraEnabled
+    public static TerritoryValidationResponse validateTerritory(String leadType, String postalCode, String segmentType) {
+        TerritoryValidationResponse response = new TerritoryValidationResponse();
+        response.isValid = false;
+        response.warningMessage = WARNING_MESSAGE;
+
+        String sanitizedInputPincode = sanitizePincode(postalCode);
+        if (String.isBlank(leadType) || String.isBlank(segmentType) || String.isBlank(sanitizedInputPincode)) {
+            return response;
+        }
+
+        String derivedTrack = deriveTrackFromCurrentUserRole();
+        if (String.isBlank(derivedTrack)) {
+            return response;
+        }
+
+        Set<Id> territory2Ids = new Set<Id>();
+        for (UserTerritory2Association uta : [
+            SELECT Territory2Id
+            FROM UserTerritory2Association
+            WHERE UserId = :UserInfo.getUserId()
+        ]) {
+            territory2Ids.add(uta.Territory2Id);
+        }
+
+        if (territory2Ids.isEmpty()) {
+            return response;
+        }
+
+
+        System.debug('Derived track: ' + derivedTrack);
+        System.debug('Territory2 IDs: ' + territory2Ids);
+
+       
+
+        List<Territory_Assignment__c> assignments = [
+            SELECT Id,
+                   Pincode__c,
+                   Segment__c,
+                   TerritoryCode__c,
+                   TerritorySFId__c,
+                   Track__c,
+                   TypeOfAssignment__c
+            FROM Territory_Assignment__c
+            WHERE Track__c = :derivedTrack
+              AND Serviceable__c = true
+              AND TypeOfAssignment__c = :ASSIGNMENT_TYPE_LEAD
+              AND TerritorySFId__c IN :territory2Ids
+              AND Pincode__c = :parsePincodeForQuery(sanitizedInputPincode)
+        ];
+
+        System.debug('Territory assignments found: ' + assignments.size());
+        System.debug('Territory assignments: ' + assignments);
+
+        if (assignments.isEmpty()) {
+            return response;
+        }
+
+        Map<String, Set<String>> allowedSegmentsBySourceSegment = getAllowedSegmentsBySourceSegment();
+        System.debug('Allowed segments by source segment: ' + allowedSegmentsBySourceSegment);
+        
+        //Map<String, Id> territoryAssignmentByKey = new Map<String, Id>();
+        //String normalizedLeadType = normalizeKeyPart(leadType);
+        String normalizedSegmentType = normalizeKeyPart(segmentType);
+
+        //System.debug('Normalized lead type: ' + normalizedLeadType);
+        System.debug('Normalized segment type: ' + normalizedSegmentType);
+        
+        for (Territory_Assignment__c assignment : assignments) {
+            String normalizedSourceSegment = normalizeKeyPart(assignment.Segment__c);
+            System.debug('Normalized source segment: ' + normalizedSourceSegment);
+            Set<String> allowedSegments = allowedSegmentsBySourceSegment.get(normalizedSourceSegment);
+            if(allowedSegments != null){
+                System.debug('Allowed segments for source segment ' + normalizedSourceSegment + ': ' + allowedSegments);
+                if(allowedSegments.contains(normalizedSegmentType)) {
+                    System.debug('Normalized segment type ' + normalizedSegmentType + ' is allowed for source segment ' + normalizedSourceSegment);
+                    response.isValid = true;
+                    response.territoryAssignmentId = assignment.Id;
+                    response.warningMessage = null;
+                    response.territorySfId = assignment.TerritorySFId__c;
+
+                    return response;
+                } 
+            }
+            
+    } 
+
+        return response;
+    }
+
+    @AuraEnabled
+    public static CreateLeadResponse createLead(CreateLeadRequest requestData) {
+        if (requestData == null) {
+            throw new AuraHandledException(System.Label.SFA_PJT_LeadDataRequiredMessage);
+        }
+        Id leadId = requestData.leadId;
+        Boolean isInsertFlow = leadId == null || String.isBlank(leadId);
+
+        System.debug('Received CreateLeadRequest: ' + JSON.serialize(requestData));
+        normalizeRequest(requestData);
+        System.debug('Normalized CreateLeadRequest: ' + JSON.serialize(requestData));
+
+        if (isRepaintingSegment(requestData.segmentType)) {
+            requestData.isKeyAccount = 'Yes';
+            requestData.keyParentProjectId = getOtherKeyAccountId(true);
+            requestData.otherKeyAccount = null;
+        }
+
+        String leadStatus;
+        if (isInsertFlow) {
+            validateCreateRequest(requestData);
+            leadStatus =  DEFAULT_STATUS;
+        }
+
+        String currentProfileName = getCurrentUserProfileName();
+        Boolean isProjectSalesOfficer = isProjectSalesOfficerProfile(currentProfileName);
+        Boolean isShareFlow = isProjectSalesOfficer && requestData.shareWithCoOwner == true;
+        Boolean isAssignToCoOwnerFlow = isProjectSalesOfficer && requestData.AssignToCoOwner == true;
+        Boolean isQueueFlow = /* isProjectSalesOfficer && */ requestData.assignToBusinessQueue == true;
+        Boolean createDuplicateRecord = requestData.CreateDuplicate == true;
+        Boolean isUpdateCoOwnerFlow = requestData.isUpdateCoOwnerFlow == true;
+
+        if (isUpdateCoOwnerFlow) {
+            Lead leadForValidation = [
+                SELECT Id, OwnerId, CoOwner__c
+                FROM Lead
+                WHERE Id = :leadId
+                LIMIT 1
+            ];
+            
+            if (leadForValidation.OwnerId != UserInfo.getUserId()) {
+                throw new AuraHandledException(System.Label.SFA_PJT_LeadOwnerCannotAssignCoOwnerMessage);
+            }
+            
+            if (leadForValidation.CoOwner__c != null) {
+                throw new AuraHandledException(System.Label.SFA_PJT_CoOwnerAlreadyAssignedMessage);
+            }
+        }
+
+        if (isProjectSalesOfficer && !isUpdateCoOwnerFlow) {
+            // Keep existing current-user territory validation behavior for PSO profile.
+            validateTerritory(requestData.leadType, requestData.postalCode, requestData.segmentType);
+        }
+
+        SaveTerritoryResolution territoryResolution = resolveTerritoryForSave(
+            requestData.postalCode,
+            requestData.segmentType,
+            requestData.track,
+            requestData.typeOfAssignment,
+            requestData.leadAccountType,
+            requestData.assignToBusinessQueue
+        );
+
+        if (isShareFlow && !isAssignToCoOwnerFlow && String.isBlank(requestData.sharingPercentageBand)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_SharingBandRequiredForCoOwnerFlowMessage);
+        }
+
+        Id coOwnerId = null;
+        if ((isShareFlow || isAssignToCoOwnerFlow || isUpdateCoOwnerFlow) && !isQueueFlow) {
+            if (requestData.suggestedCoOwnerId == null) {
+                throw new AuraHandledException(System.Label.SFA_PJT_CoOwnerSuggestionRequiredMessage);
+            }
+
+            coOwnerId = getValidatedActiveUserId(requestData.suggestedCoOwnerId);
+            if (coOwnerId == null) {
+                throw new AuraHandledException(System.Label.SFA_PJT_SuggestedCoOwnerInvalidMessage);
+            }
+        }
+
+        Id ownerId = UserInfo.getUserId();
+        Id psmUserId = null;
+        if (!isProjectSalesOfficer && territoryResolution != null && !territoryResolution.isUnmappedTerritory
+            && territoryResolution.assignedUserId != null) {
+            ownerId = territoryResolution.assignedUserId;
+            if(ownerId != UserInfo.getUserId()) {
+                psmUserId = ownerId;
+            }
+        }
+        else if( isShareFlow && isAssignToCoOwnerFlow && coOwnerId != null && !isQueueFlow && isProjectSalesOfficer) {
+        ownerId = coOwnerId;
+        }
+
+        System.debug('Determined ownerId: ' + ownerId);
+        System.debug('Is Project Sales Officer: ' + isProjectSalesOfficer);
+        System.debug('Is unmapped Territory: ' + territoryResolution.isUnmappedTerritory);
+        System.debug('Territory Assignment Id: ' + territoryResolution.assignedUserId);
+        
+/* 
+        String leadStatus = (territoryResolution != null && (territoryResolution.isUnmappedTerritory || !isProjectSalesOfficer))
+            ? DEFAULT_STATUS
+            : NURTURING_STATUS; */
+
+
+
+        //Boolean bypassLeadTerritoryAutomation = !isProjectSalesOfficer;
+        //TerritoryAssignmentService.setSkipLeadTerritoryAutomationForCurrentTransaction(bypassLeadTerritoryAutomation);
+        Lead safeLead;
+        try {
+            LeadTriggerHandler.bypassLwc = true;
+            if(isInsertFlow) {
+                Lead draftLead = new Lead();
+                putIfCreateable(draftLead, Lead.OwnerId, ownerId);
+                putIfCreateable(draftLead, Lead.Status, leadStatus);
+                // Notification flow filters on RecordType.DeveloperName, so it must always be set explicitly rather than relying on the running user's default.
+                Id resolvedRecordTypeId = requestData.recordTypeId != null ? requestData.recordTypeId : getProjectSiteRecordTypeId();
+                putIfCreateable(draftLead, Lead.RecordTypeId, resolvedRecordTypeId);
+                //putIfCreateable(draftLead, Lead.LeadType__c, requestData.leadType);
+                putIfCreateable(draftLead, Lead.Company, requestData.company);
+                putIfCreateable(draftLead, Lead.FirstName, requestData.firstName);
+                putIfCreateable(draftLead, Lead.LastName, requestData.lastName);
+                putIfCreateable(draftLead, Lead.Phone, requestData.phone);
+                putIfCreateable(draftLead, Lead.MobilePhone, requestData.mobilePhone);
+                putIfCreateable(draftLead, Lead.Email, requestData.email);
+                putIfCreateable(draftLead, Lead.LeadSource, requestData.leadSource);
+                putIfCreateable(draftLead, Lead.IsKeyAccount__c, requestData.isKeyAccount);
+                putIfCreateable(draftLead, Lead.KeyParentProject__c, requestData.keyParentProjectId);
+                putIfCreateable(draftLead, Lead.OtherKeyAccount__c, requestData.otherKeyAccount);
+                putIfCreateable(draftLead, Lead.Dealer__c, requestData.dealerId);
+                putIfCreateable(draftLead, Lead.Contractor__c, requestData.contractorId);
+                putIfCreateable(draftLead, Lead.Specifier__c, requestData.specifierId);
+                putIfCreateable(draftLead, Lead.AdditionalContactNumber__c, requestData.contactNumber);
+                putIfCreateable(draftLead, Lead.SegmentType__c, requestData.segmentType);
+                putIfCreateable(draftLead, Lead.City, requestData.city);
+                putIfCreateable(draftLead, Lead.District__c, requestData.district);
+                putIfCreateable(draftLead, Lead.StateCode, requestData.stateCode);
+                putIfCreateable(draftLead, Lead.Street, requestData.street);
+                putIfCreateable(draftLead, Lead.Landmark__c, requestData.landmark);
+                putIfCreateable(draftLead, Lead.PostalCode, sanitizePincode(requestData.postalCode));
+                putIfCreateable(draftLead, Lead.CountryCode, DEFAULT_COUNTRY_CODE);
+                
+                if(isShareFlow && coOwnerId != null && !isAssignToCoOwnerFlow && !isQueueFlow) {
+                    putIfCreateable(draftLead, Lead.CoOwner__c, coOwnerId);
+                    putIfCreateable(draftLead, Lead.SharingPercentageBand__c, requestData.sharingPercentageBand);
+                }
+
+                if(isProjectSalesOfficer && territoryResolution != null && !requestData.assignToBusinessQueue && requestData.territoryAssignmentId != null) {
+                    putIfCreateable(draftLead, Lead.SFA_PJT_Territory_Assignment__c, requestData.territoryAssignmentId);
+                }
+
+                SObjectAccessDecision decision = Security.stripInaccessible(AccessType.CREATABLE, new List<SObject>{ draftLead });
+                safeLead = (Lead) decision.getRecords()[0];
+                Database.DMLOptions dml = new Database.DMLOptions();
+                dml.DuplicateRuleHeader.allowSave = createDuplicateRecord;
+                dml.DuplicateRuleHeader.runAsCurrentUser = true;
+
+                Database.SaveResult result = Database.insert(safeLead, dml);
+
+                if (!result.isSuccess()) {
+                    throw new AuraHandledException(result.getErrors()[0].getMessage());
+                }
+                
+            }//if
+            else{
+                Lead existingLead = [
+                    SELECT Id, OwnerId, Status, SharingPercentageBand__c, CoOwner__c, SFA_PJT_Territory_Assignment__c
+                    FROM Lead
+                    WHERE Id = :leadId
+                    LIMIT 1
+                ];
+
+                if (existingLead == null) {
+                    throw new AuraHandledException(System.Label.SFA_PJT_LeadNotFoundMessage);
+                }
+                putIfCreateable(existingLead, Lead.OwnerId, ownerId);
+                //putIfCreateable(existingLead, Lead.Status, leadStatus);
+
+                if(isShareFlow && coOwnerId != null && !isAssignToCoOwnerFlow && !isQueueFlow && isProjectSalesOfficer) {
+                    putIfCreateable(existingLead, Lead.CoOwner__c, coOwnerId);
+                    putIfCreateable(existingLead, Lead.SharingPercentageBand__c, requestData.sharingPercentageBand);
+                }
+                else{
+                    putIfCreateable(existingLead, Lead.CoOwner__c, null);
+                    putIfCreateable(existingLead, Lead.SharingPercentageBand__c, null);
+                }
+
+                if( !isUpdateCoOwnerFlow && isProjectSalesOfficer && !requestData.assignToBusinessQueue && requestData.territoryAssignmentId != null) {
+                    putIfCreateable(existingLead, Lead.SFA_PJT_Territory_Assignment__c, requestData.territoryAssignmentId);
+                }
+
+                update existingLead;
+                safeLead = existingLead;
+            }//else 
+
+                if(isProjectSalesOfficer /* && territoryResolution != null */ && !requestData.assignToBusinessQueue && safeLead.Id != null && requestData.territorySfId != null) {
+                    Map<Id, Id> desiredTerritoryByRecord = new Map<Id, Id>();
+
+                    if(isAssignToCoOwnerFlow || isShareFlow || isUpdateCoOwnerFlow) {
+                        list<UserTerritory2Association> userTerritoryAssociations = [select id , UserId, Territory2Id from UserTerritory2Association where UserId = :ownerId];
+                        for(UserTerritory2Association uta : userTerritoryAssociations) {
+                            if(uta.Territory2Id != requestData.territorySfId) {
+                                desiredTerritoryByRecord.put(safeLead.Id, uta.Territory2Id);
+                                System.debug('Desired Territory By Record1: ' + desiredTerritoryByRecord);
+                                TerritoryAssignmentService.syncAssociations('Lead', new Set<Id>{safeLead.Id}, desiredTerritoryByRecord);
+                                break;
+                            }
+                        }
+                    }                    
+                    
+                    desiredTerritoryByRecord.put(safeLead.Id, requestData.territorySfId);
+                    System.debug('Desired Territory By Record: ' + desiredTerritoryByRecord);
+                    TerritoryAssignmentService.syncAssociations('Lead', new Set<Id>{safeLead.Id}, desiredTerritoryByRecord);
+                
+                }
+            
+
+        } catch (DmlException ex) {
+            Logger.error('Failed to save lead in createLead.', leadId, ex).addTag('Lead Creation');
+            throw new AuraHandledException(getUserFriendlyDmlMessage(ex));
+        } finally {
+            LeadTriggerHandler.bypassLwc = false;
+            Logger.saveLog();
+        }
+
+
+        if (isQueueFlow) {
+            String effectiveTrack = String.isBlank(requestData.track) ? deriveTrackFromCurrentUserRole() : requestData.track;
+            String effectiveLeadAccountType = String.isBlank(requestData.leadAccountType) ? DEFAULT_LEAD_ACCOUNT_TYPE : requestData.leadAccountType;
+            notifyBusinessManagersForUnmappedPin(
+                sanitizePincode(requestData.postalCode),
+                requestData.segmentType,
+                effectiveTrack,
+                effectiveLeadAccountType,
+                safeLead.Id
+            );
+        }
+
+        if (isProjectSalesOfficer && coOwnerId != null) {
+            notifyUser(safeLead.Id, coOwnerId, LEAD_COOWNER_TEMPLATE_DEV_NAME );
+            sendBellNotificationToPSM(safeLead.Id, coOwnerId, requestData.company);
+        }
+        else if (psmUserId != null) {
+            notifyUser(safeLead.Id, psmUserId, LEAD_PSM_TEMPLATE_DEV_NAME );
+            sendBellNotificationToPSM(safeLead.Id, psmUserId, requestData.company);
+        }
+
+        CreateLeadResponse response = new CreateLeadResponse();
+        response.leadId = safeLead.Id;
+        response.message = isInsertFlow ? System.Label.SFA_PJT_LeadCreatedSuccessMessage : System.Label.SFA_PJT_LeadUpdatedSuccessMessage;
+        response.ownerId = safeLead.OwnerId;
+        return response;
+    }
+
+    private static SaveTerritoryResolution resolveTerritoryForSave(
+        String pincode,
+        String segment,
+        String track,
+        String typeOfAssignment,
+        String leadAccountType,
+        Boolean assignToBusinessQueue
+    ) {
+        SaveTerritoryResolution response = new SaveTerritoryResolution();
+        response.isUnmappedTerritory = assignToBusinessQueue;
+
+        String sanitizedPincode = sanitizePincode(pincode);
+        System.debug('Sanitized pincode: ' + sanitizedPincode);
+        System.debug('Segment: ' + segment);
+        if (String.isBlank(sanitizedPincode) || String.isBlank(segment)) {
+            return response;
+        }
+
+        String queryPincode = parsePincodeForQuery(sanitizedPincode);
+        System.debug('Parsed query pincode: ' + queryPincode);
+        if (queryPincode == null) {
+            return response;
+        }
+
+        String effectiveTrack = String.isBlank(track) ? deriveTrackFromCurrentUserRole() : track.trim();
+        System.debug('Effective track: ' + effectiveTrack);
+        if (String.isBlank(effectiveTrack)) {
+            return response;
+        }
+
+        String effectiveAssignmentType = String.isBlank(typeOfAssignment) ? ASSIGNMENT_TYPE_LEAD : typeOfAssignment.trim();
+        String effectiveLeadAccountType = String.isBlank(leadAccountType) ? DEFAULT_LEAD_ACCOUNT_TYPE : leadAccountType.trim();
+
+        Map<String, Set<String>> allowedSegmentsBySourceSegment = getAllowedSegmentsBySourceSegment();
+        String normalizedInputSegment = normalizeKeyPart(segment);
+
+        List<Territory_Assignment__c> assignmentRows = queryLeadTerritoryAssignments(
+            effectiveTrack,
+            effectiveAssignmentType,
+            effectiveLeadAccountType,
+            queryPincode
+        );
+
+        Territory_Assignment__c chosenAssignment = getchoosenTerritoryAssignment(assignmentRows, normalizedInputSegment, allowedSegmentsBySourceSegment);
+        System.debug('Chosen assignment: ' + chosenAssignment);
+
+        if (chosenAssignment == null) {
+            return response;
+        }
+
+        //response.isUnmappedTerritory = false;
+        response.territoryAssignmentId = chosenAssignment.Id;
+
+        String areaSfId = getStringFieldValue(chosenAssignment, 'AreaSFId__c');
+        response.areaSfId = areaSfId;
+        response.assignedUserId = resolveAssignedUserByAreaTerritory(areaSfId);
+
+        return response;
+    }
+
+    private static List<Territory_Assignment__c> queryLeadTerritoryAssignments(
+        String effectiveTrack,
+        String effectiveAssignmentType,
+        String effectiveLeadAccountType,
+        String queryPincode
+    ) {
+        Boolean hasAreaField = Schema.SObjectType.Territory_Assignment__c.fields.getMap().containsKey('AreaSFId__c');
+        String query = 'SELECT Id, Segment__c, TerritorySFId__c';
+        if (hasAreaField) {
+            query += ', AreaSFId__c';
+        }
+        query += ' FROM Territory_Assignment__c'
+            + ' WHERE Track__c = :effectiveTrack'
+            + ' AND Serviceable__c = true'
+            + ' AND TypeOfAssignment__c = :effectiveAssignmentType'
+            + ' AND LeadAccountType__c = :effectiveLeadAccountType'
+            + ' AND Pincode__c = :queryPincode'
+            + ' ORDER BY LastModifiedDate DESC';
+
+        return Database.query(query);
+    }
+
+    private static String getStringFieldValue(SObject row, String fieldApiName) {
+        if (row == null || String.isBlank(fieldApiName)) {
+            return null;
+        }
+        Map<String, Object> populatedFields = row.getPopulatedFieldsAsMap();
+        if (!populatedFields.containsKey(fieldApiName)) {
+            return null;
+        }
+        Object rawValue = populatedFields.get(fieldApiName);
+        if (rawValue == null) {
+            return null;
+        }
+        String asText = String.valueOf(rawValue).trim();
+        return String.isBlank(asText) ? null : asText;
+    }
+
+    private static Id resolveAssignedUserByAreaTerritory(String areaSfId) {
+        if (!isValidSalesforceId(areaSfId)) {
+            return null;
+        }
+
+        Id territoryId = (Id) areaSfId;
+        List<UserTerritory2Association> territoryUsers = [
+            SELECT UserId
+            FROM UserTerritory2Association
+            WHERE Territory2Id = :territoryId
+              AND User.IsActive = true
+              AND User.Profile.Name =: System.Label.SFA_PJT_ProjectSalesManagerProfileName
+            ORDER BY LastModifiedDate DESC
+            LIMIT 1
+        ];
+        return territoryUsers.isEmpty() ? null : territoryUsers[0].UserId;
+    }
+
+    private static Boolean isValidSalesforceId(String value) {
+        if (String.isBlank(value)) {
+            return false;
+        }
+        String trimmed = value.trim();
+        Integer length = trimmed.length();
+        if (length != 15 && length != 18) {
+            return false;
+        }
+        return Pattern.matches('[a-zA-Z0-9]{15,18}', trimmed);
+    }
+
+    private static String getCurrentUserProfileName() {
+        List<User> users = [
+            SELECT Profile.Name
+            FROM User
+            WHERE Id = :UserInfo.getUserId()
+            LIMIT 1
+        ];
+        if (users.isEmpty() || users[0].Profile == null) {
+            return null;
+        }
+        return users[0].Profile.Name;
+    }
+
+    private static Boolean isProjectSalesOfficerProfile(String profileName) {
+        return String.isNotBlank(profileName) && PROJECT_SALES_OFFICER_PROFILE_NAMES.contains(profileName);
+    }
+
+    @AuraEnabled
+    public static TerritoryUserSuggestionResponse getTerritoryUserSuggestion(
+        String pincode,
+        String segment,
+        String track,
+        String typeOfAssignment,
+        String leadAccountType
+    ) {
+        TerritoryUserSuggestionResponse response = new TerritoryUserSuggestionResponse();
+        response.hasSuggestion = false;
+        response.isUnmappedTerritory = false;
+
+        String sanitizedPincode = sanitizePincode(pincode);
+        if (String.isBlank(sanitizedPincode) || String.isBlank(segment)) {
+            response.message = System.Label.SFA_PJT_PincodeSegmentRequiredForSuggestionMessage;
+            return response;
+        }
+        String queryPincode = parsePincodeForQuery(sanitizedPincode);
+        if (queryPincode == null) {
+            response.message = System.Label.SFA_PJT_PincodeSegmentRequiredForSuggestionMessage;
+            return response;
+        }
+
+        String effectiveTrack = String.isBlank(track) ? deriveTrackFromCurrentUserRole() : track.trim();
+        if (String.isBlank(effectiveTrack)) {
+            response.message = System.Label.SFA_PJT_UnableToDetermineTrackSuggestionMessage;
+            return response;
+        }
+
+        String effectiveAssignmentType = String.isBlank(typeOfAssignment) ? ASSIGNMENT_TYPE_LEAD : typeOfAssignment.trim();
+        String effectiveLeadAccountType = String.isBlank(leadAccountType) ? DEFAULT_LEAD_ACCOUNT_TYPE : leadAccountType.trim();
+
+        System.debug('Effective track: ' + effectiveTrack);
+        System.debug('Effective assignment type: ' + effectiveAssignmentType);
+        System.debug('Effective lead account type: ' + effectiveLeadAccountType);
+        System.debug('Sanitized pincode: ' + sanitizedPincode);
+
+        Map<String, Set<String>> allowedSegmentsBySourceSegment = getAllowedSegmentsBySourceSegment();
+        System.debug('Allowed segments by source segment: ' + allowedSegmentsBySourceSegment);
+         String normalizedInputSegment = normalizeKeyPart(segment);
+        /*Set<String> allowedSegments = allowedSegmentsBySourceSegment.get(normalizedInputSegment);
+        if (allowedSegments == null || allowedSegments.isEmpty()) {
+            allowedSegments = new Set<String>{ normalizedInputSegment };
+        } */
+
+
+        List<Territory_Assignment__c> assignmentRows = [
+            SELECT Id, Segment__c, TerritorySFId__c
+            FROM Territory_Assignment__c
+            WHERE Track__c = :effectiveTrack
+              AND Serviceable__c = true
+              AND TypeOfAssignment__c = :effectiveAssignmentType
+              AND LeadAccountType__c = :effectiveLeadAccountType
+                            AND Pincode__c = :queryPincode
+            ORDER BY LastModifiedDate DESC
+        ];
+        System.debug('Territory assignments found: ' + assignmentRows.size());
+        System.debug('Territory assignments: ' + assignmentRows);
+
+        Territory_Assignment__c chosenAssignment = getchoosenTerritoryAssignment(assignmentRows, normalizedInputSegment, allowedSegmentsBySourceSegment);
+        System.debug('Chosen assignment: ' + chosenAssignment);
+                
+        if (chosenAssignment == null || String.isBlank(chosenAssignment.TerritorySFId__c)) {
+            response.isUnmappedTerritory = true;
+            response.message = System.Label.SFA_PJT_NoMappedTerritoryAssignmentMessage;
+            return response;
+        }
+
+        System.debug('Chosen assignment: ' + chosenAssignment);
+
+        List<UserTerritory2Association> territoryUsers = [
+            SELECT UserId, User.Name
+            FROM UserTerritory2Association
+            WHERE Territory2Id = :chosenAssignment.TerritorySFId__c
+              AND User.IsActive = true
+            ORDER BY LastModifiedDate DESC
+            LIMIT 1
+        ];
+        //System.debug('Territory users found: ' + territoryUsers.size());
+        System.debug('cowner Territory users: ' + territoryUsers);
+        System.debug('territorysfId: ' + chosenAssignment.TerritorySFId__c);
+
+        if (!territoryUsers.isEmpty() && territoryUsers[0].UserId != null && chosenAssignment.Id != null && chosenAssignment.TerritorySFId__c != null) {
+            response.hasSuggestion = true;
+            response.suggestedUserId = territoryUsers[0].UserId;
+            response.suggestedUserName = territoryUsers[0].User.Name;
+            response.territoryAssignmentId = chosenAssignment.Id;
+            response.territorySfId = chosenAssignment.TerritorySFId__c;
+            response.message = null;
+        } else {
+            response.message = System.Label.SFA_PJT_NoActivePsoFoundMessage;
+        }
+
+        return response;
+    }
+
+
+    
+    private static Territory_Assignment__c getchoosenTerritoryAssignment(List<Territory_Assignment__c> assignmentRows, String normalizedInputSegment, Map<String, Set<String>> allowedSegmentsBySourceSegment) {
+        System.debug('Territory assignments found: ' + assignmentRows.size());
+        System.debug('Territory assignments: ' + assignmentRows);
+        System.debug('allowedSegmentsBySourceSegment: ' + allowedSegmentsBySourceSegment);
+        System.debug('normalizedInputSegment: ' + normalizedInputSegment);
+
+        Set<Id> allChosenTerritoryIds = new Set<Id>();
+        List<Territory_Assignment__c> validAssignments = new List<Territory_Assignment__c>();
+        Territory_Assignment__c chosenAssignment;
+        for (Territory_Assignment__c row : assignmentRows) {
+            String normalizedAssignmentSegment = normalizeKeyPart(row.Segment__c);
+            System.debug('normalizedAssignmentSegment' + normalizedAssignmentSegment);
+            Set<String> allowedSegments = allowedSegmentsBySourceSegment.get(normalizedAssignmentSegment);
+            if(allowedSegments != null){
+                System.debug('Checking segment: ' + normalizedInputSegment + ' against allowed segments: ' + allowedSegments);
+                if (allowedSegments.contains(normalizedInputSegment)) {
+                    allChosenTerritoryIds.add(row.TerritorySFId__c);
+                    validAssignments.add(row);
+                }
+            }
+        }
+
+        System.debug('All chosen territory IDs: ' + allChosenTerritoryIds);
+        
+        Id userAssociatedTerritoryId ;
+        for (UserTerritory2Association uta : [select id, Territory2Id, UserId from UserTerritory2Association where territory2Id IN :allChosenTerritoryIds]) {
+            userAssociatedTerritoryId = uta.Territory2Id;
+        }
+        System.debug('User associated territory ID: ' + userAssociatedTerritoryId);
+
+        for(Territory_Assignment__c row : validAssignments) {
+            if (row.TerritorySFId__c != null && userAssociatedTerritoryId != null && row.TerritorySFId__c == userAssociatedTerritoryId) {
+                chosenAssignment = row;
+                return chosenAssignment;
+            }
+        }
+        System.debug('Chosen assignment: ' + chosenAssignment);
+
+        return chosenAssignment;
+
+    }
+
+
+
+
+    private static void validateCreateRequest(CreateLeadRequest requestData) {
+        System.debug('Validating CreateLeadRequest: ' + JSON.serialize(requestData));
+        if (String.isBlank(requestData.company)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_CompanyRequiredMessage);
+        }
+        if (String.isBlank(requestData.lastName)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_LastNameRequiredMessage);
+        }
+        if (String.isBlank(requestData.leadSource)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_LeadSourceRequiredMessage);
+        }
+        if (String.isBlank(requestData.leadType)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_LeadTypeRequiredMessage);
+        }
+        if (String.isBlank(requestData.segmentType)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_SegmentTypeRequiredMessage);
+        }
+
+        String sanitizedPincode = sanitizePincode(requestData.postalCode);
+        if (String.isBlank(sanitizedPincode)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_PostalCodeMinDigitsMessage);
+        }
+
+        if (!String.isBlank(requestData.mobilePhone) && !isTenDigitNumber(requestData.mobilePhone)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_MobileNumberTenDigitsMessage);
+        }
+        if (!String.isBlank(requestData.contactNumber) && !isTenDigitNumber(requestData.contactNumber)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_ContactNumberTenDigitsMessage);
+        }
+        if (!String.isBlank(requestData.email) && !isValidEmail(requestData.email)) {
+            throw new AuraHandledException(System.Label.SFA_PJT_ValidEmailRequiredMessage);
+        }
+
+        String normalizedLeadSource = normalizeLeadSource(requestData.leadSource);
+        if (normalizedLeadSource == LEAD_SOURCE_CONTRACTOR_RECOMMENDED && requestData.contractorId == null) {
+            throw new AuraHandledException(System.Label.SFA_PJT_ContractorRequiredForLeadSourceMessage);
+        }
+        if (normalizedLeadSource == LEAD_SOURCE_DEALER_RECOMMENDED && requestData.dealerId == null) {
+            throw new AuraHandledException(System.Label.SFA_PJT_DealerRequiredForLeadSourceMessage);
+        }
+        if (normalizedLeadSource == LEAD_SOURCE_SPECIFIER_RECOMMENDED && requestData.specifierId == null) {
+            throw new AuraHandledException(System.Label.SFA_PJT_SpecifierRequiredForLeadSourceMessage);
+        }
+    }
+
+    private static String normalizeLeadSource(String leadSource) {
+        return String.isBlank(leadSource) ? '' : leadSource.trim().toLowerCase();
+    }
+
+    private static Boolean isRepaintingSegment(String segmentType) {
+        return segmentType != null && segmentType.trim().toLowerCase() == 're-painting';
+    }
+
+    private static Id getOtherKeyAccountId(Boolean logErrors) {
+        try {
+            String keyAccountRecordTypeName = System.Label.SFA_PJT_KeyAccountRecordtypeName;
+            List<Account> otherAccounts = [
+                SELECT Id
+                FROM Account
+                WHERE Name = 'Other'
+                  AND RecordType.DeveloperName = :keyAccountRecordTypeName
+                LIMIT 1
+            ];
+            if (otherAccounts.isEmpty()) {
+                throw new AuraHandledException('The Account named Other with the configured Key Account record type is not configured.');
+            }
+            return otherAccounts[0].Id;
+        } catch (AuraHandledException ex) {
+            if (logErrors) {
+                Logger.error('The configured Other Key Account was not found.', '', ex)
+                    .addTag('Lead Creation');
+            }
+            throw ex;
+        } catch (Exception ex) {
+            if (logErrors) {
+                Logger.error('Failed to retrieve the Other Key Account.', '', ex)
+                    .addTag('Lead Creation');
+            }
+            throw new AuraHandledException('Unable to retrieve the configured Other Key Account.');
+        } finally {
+            if (logErrors) {
+                Logger.saveLog();
+            }
+        }
+    }
+
+    private static void normalizeRequest(CreateLeadRequest requestData) {
+        requestData.leadType = trimToNull(requestData.leadType);
+        requestData.company = trimToNull(requestData.company);
+        requestData.firstName = trimToNull(requestData.firstName);
+        requestData.lastName = trimToNull(requestData.lastName);
+        requestData.phone = trimToNull(requestData.phone);
+        requestData.mobilePhone = trimToNull(requestData.mobilePhone);
+        requestData.email = trimToNull(requestData.email);
+        requestData.leadSource = trimToNull(requestData.leadSource);
+        requestData.isKeyAccount = trimToNull(requestData.isKeyAccount);
+        requestData.otherKeyAccount = trimToNull(requestData.otherKeyAccount);
+        requestData.contactNumber = trimToNull(requestData.contactNumber);
+        requestData.segmentType = trimToNull(requestData.segmentType);
+        requestData.city = trimToNull(requestData.city);
+        requestData.district = trimToNull(requestData.district);
+        requestData.stateCode = trimToNull(requestData.stateCode);
+        requestData.street = trimToNull(requestData.street);
+        requestData.landmark = trimToNull(requestData.landmark);
+        requestData.postalCode = trimToNull(requestData.postalCode);
+        requestData.sharingPercentageBand = trimToNull(requestData.sharingPercentageBand);
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed == '' ? null : trimmed;
+    }
+
+    private static List<Option> getPicklistValues(Schema.DescribeFieldResult fieldDescribe) {
+        List<Option> options = new List<Option>();
+        for (Schema.PicklistEntry entry : fieldDescribe.getPicklistValues()) {
+            if (entry.isActive()) {
+                options.add(new Option(entry.getLabel(), entry.getValue()));
+            }
+        }
+        return options;
+    }
+
+    private static String deriveTrackFromCurrentUserRole() {
+        List<User> users = [
+            SELECT UserRole.DeveloperName
+            FROM User
+            WHERE Id = :UserInfo.getUserId()
+            LIMIT 1
+        ];
+        if (users.isEmpty() || users[0].UserRole == null || String.isBlank(users[0].UserRole.DeveloperName)) {
+            return null;
+        }
+
+        String roleDevName = users[0].UserRole.DeveloperName.toUpperCase();
+        if (roleDevName.contains(TRACK_PJT)) {
+            return TRACK_PJT;
+        }
+        if (roleDevName.contains(TRACK_DIT)) {
+            return TRACK_DIT;
+        }
+        return TRACK_PJT;
+    }
+
+    private static Map<String, Set<String>> getAllowedSegmentsBySourceSegment() {
+        return TerritoryAssignmentSelector.getAllowedSegmentsBySourceSegment();
+    }
+
+   /*  private static String buildValidationKey(String segment, String pincode, String leadType) {
+        return normalizeKeyPart(segment) + '|' + normalizeKeyPart(pincode) + '|' + normalizeKeyPart(leadType);
+    } */
+
+    private static String normalizeKeyPart(String value) {
+        return String.isBlank(value) ? '' : value.trim().toUpperCase();
+    }
+
+    private static String sanitizePincode(String rawValue) {
+        if (String.isBlank(rawValue)) {
+            return null;
+        }
+
+        String digits = '';
+        for (Integer i = 0; i < rawValue.length(); i++) {
+            String ch = rawValue.substring(i, i + 1);
+            if (ch >= '0' && ch <= '9') {
+                digits += ch;
+            }
+        }
+
+        if (digits.length() < 6) {
+            return null;
+        }
+        return digits.substring(0, 6);
+    }
+
+    private static Boolean isTenDigitNumber(String value) {
+        String digits = value == null ? '' : value.replaceAll('[^0-9]', '');
+        return digits.length() == 10;
+    }
+
+    private static Boolean isValidEmail(String value) {
+        return Pattern.matches('^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$', value);
+    }
+
+/*      private static Decimal parseContactNumber(String rawValue) {
+        if (String.isBlank(rawValue)) {
+            return null;
+        } 
+
+        String digits = rawValue.replaceAll('[^0-9]', '');
+        if (String.isBlank(digits)) {
+            return null;
+        }
+
+        try {
+            return Decimal.valueOf(digits);
+        } catch (Exception ex) {
+            Logger.error('Failed to parse contact number.', '', ex)
+                .addTag('Lead Creation');
+            throw new AuraHandledException(System.Label.SFA_PJT_ValidContactNumberMessage);
+        } finally {
+            Logger.saveLog();
+        }
+    } */
+
+    private static String parsePincodeForQuery(String sanitizedPincode) {
+        if (String.isBlank(sanitizedPincode)) {
+            return null;
+        }
+        return sanitizedPincode;
+    }
+
+/*     private static Decimal parseSharingPercentageBand(String rawValue) {
+        if (String.isBlank(rawValue)) {
+            return null;
+        }
+
+        try {
+            return Decimal.valueOf(rawValue.trim());
+        } catch (Exception ex) {
+            Logger.error('Failed to parse sharing percentage band.', '', ex)
+                .addTag('Lead Creation');
+            throw new AuraHandledException('Please enter a valid Sharing Percentage Band.');
+        } finally {
+            Logger.saveLog();
+        }
+    } */
+
+    private static Id getValidatedActiveUserId(Id userId) {
+        if (userId == null) {
+            return null;
+        }
+
+        List<User> users = [
+            SELECT Id
+            FROM User
+            WHERE Id = :userId
+              AND IsActive = true
+            LIMIT 1
+        ];
+        return users.isEmpty() ? null : users[0].Id;
+    }
+
+/*     private static Id getBusinessManagersQueueId() {
+        List<Group> queueRows = [
+            SELECT Id
+            FROM Group
+            WHERE Type = 'Queue'
+              AND DeveloperName = :UNMAPPED_PIN_QUEUE_DEV_NAME
+            LIMIT 1
+        ];
+        if (queueRows.isEmpty()) {
+            throw new AuraHandledException(System.Label.SFA_PJT_BusinessManagersQueueNotConfiguredMessage);
+        }
+        return queueRows[0].Id;
+    } */
+
+    private static Id getOrgWideEmailAddressId() {
+        if (cachedOrgWideEmailAddressId != null) {
+            return cachedOrgWideEmailAddressId;
+        }
+
+        String configuredDisplayName = String.isBlank(System.Label.SFA_PJT_OrgWideEmaiDisplayName) ? ORG_WIDE_EMAIL_FALLBACK_DISPLAY_NAME : System.Label.SFA_PJT_OrgWideEmaiDisplayName.trim();
+
+        try {
+            List<OrgWideEmailAddress> rows = [
+                SELECT Id
+                FROM OrgWideEmailAddress
+                WHERE DisplayName = :configuredDisplayName
+                LIMIT 1
+            ];
+            if (!rows.isEmpty()) {
+                cachedOrgWideEmailAddressId = rows[0].Id;
+            }
+        } catch (Exception ex) {
+            Logger.error('Failed to retrieve org-wide email address.', '', ex)
+                .addTag('Lead Creation');
+        } finally {
+            Logger.saveLog();
+        }
+
+        return cachedOrgWideEmailAddressId;
+    }
+
+
+    private static void notifyUser(Id leadId, Id UserId, String emailTemplateName) {
+        if (leadId == null || UserId == null || String.isBlank(emailTemplateName)) {
+            return;
+        }
+        List<String> recipientEmails = new List<String>();
+
+        try {
+            for (User user : [
+                SELECT Id, Email
+                FROM User
+                WHERE Id = :UserId
+                AND IsActive = true
+                AND Email != null
+            ]) {
+                recipientEmails.add(user.Email);
+            }
+
+            if (recipientEmails == null || recipientEmails.isEmpty()) {
+                return;
+            }
+
+            // Get email template
+            List<EmailTemplate> templates = [
+                SELECT Id
+                FROM EmailTemplate
+                WHERE DeveloperName = :emailTemplateName
+                LIMIT 1
+            ];
+
+            Messaging.SingleEmailMessage email =
+                new Messaging.SingleEmailMessage();
+
+            email.setToAddresses(recipientEmails);
+            email.setSaveAsActivity(false);
+
+            Id orgWideEmailAddressId = getOrgWideEmailAddressId();
+            if (orgWideEmailAddressId != null) {
+                email.setOrgWideEmailAddressId(orgWideEmailAddressId);
+            } else {
+                System.debug(LoggingLevel.WARN, 'Org-wide email address for label SFA_PJT_OrgWideEmaiDisplayName was not found. Using default sender.');
+            }
+
+            if (!templates.isEmpty()) {
+
+                email.setTemplateId(templates[0].Id);
+                email.setTargetObjectId(leadId);
+
+                // Lead should not receive the email.
+                // Actual recipients are the queue members.
+                email.setTreatTargetObjectAsRecipient(false);
+            }
+
+            Messaging.sendEmail(
+                new List<Messaging.SingleEmailMessage>{ email }
+            );
+
+        } catch (Exception ex) {
+            Logger.error('Failed to send lead co-owner notification email.', leadId, ex)
+                .addTag('Lead Creation');
+        } finally {
+            Logger.saveLog();
+        }
+    }
+
+    private static void sendBellNotificationToPSM(Id leadId, Id psmUserId, String leadCompanyName) {
+        if (leadId == null || psmUserId == null) {
+            return; // Nothing to notify - exit quietly.
+        }
+
+        try {
+            // Look up the Custom Notification Type Id by its DeveloperName.
+            // (Configure this Custom Notification Type once in Setup ->
+            // Notification Builder -> Custom Notifications.)
+            List<CustomNotificationType> notificationTypes = [
+                SELECT Id
+                FROM CustomNotificationType
+                WHERE DeveloperName = :LEAD_CREATED_NOTIFICATION_TYPE_DEV_NAME
+                LIMIT 1
+            ];
+
+            if (notificationTypes.isEmpty()) {
+                // Custom Notification Type not set up yet in this org.
+                // Log a warning and skip - do not throw, so Lead creation
+                // is unaffected.
+                System.debug(
+                    LoggingLevel.WARN,
+                    'Custom Notification Type "' + LEAD_CREATED_NOTIFICATION_TYPE_DEV_NAME
+                        + '" was not found. Bell notification to PSM was skipped.'
+                );
+                return;
+            }
+
+            Messaging.CustomNotification bellNotification = new Messaging.CustomNotification();
+            bellNotification.setTitle('New Lead Created');
+            bellNotification.setBody(
+                String.isBlank(leadCompanyName)
+                    ? 'A new Lead has been created and requires your attention.'
+                    : 'A new Lead for "' + leadCompanyName + '" has been created and requires your attention.'
+            );
+            bellNotification.setNotificationTypeId(notificationTypes[0].Id);
+            bellNotification.setTargetId(leadId); // Clicking the bell opens this Lead.
+            bellNotification.send(new Set<String>{ psmUserId });
+
+        } catch (Exception ex) {
+            // Never let a notification failure break Lead creation.
+            Logger.error('Failed to send bell (custom) notification to PSM.', leadId, ex)
+                .addTag('Lead Creation');
+        } finally {
+            Logger.saveLog();
+        }
+    }
+
+    private static void notifyBusinessManagersForUnmappedPin(
+        String pincode,
+        String segment,
+        String track,
+        String leadAccountType,
+        Id leadId) {
+        try {
+            // Get the queue
+            List<Group> queues = [
+                SELECT Id
+                FROM Group
+                WHERE Type = 'Queue'
+                AND DeveloperName = :UNMAPPED_PIN_QUEUE_DEV_NAME
+                LIMIT 1
+            ];
+
+            if (queues.isEmpty()) {
+                return;
+            }
+
+            Id queueId = queues[0].Id;
+
+            // Get direct User members of the queue
+            Set<Id> userIds = new Set<Id>();
+
+            for (GroupMember member : [
+                SELECT UserOrGroupId
+                FROM GroupMember
+                WHERE GroupId = :queueId
+            ]) {
+                if (member.UserOrGroupId != null) {
+                    userIds.add(member.UserOrGroupId);
+                }
+            }
+
+            if (userIds.isEmpty()) {
+                return;
+            }
+
+            // Get active users and their email addresses
+            List<String> recipientEmails = new List<String>();
+
+            for (User user : [
+                SELECT Id, Email
+                FROM User
+                WHERE Id IN :userIds
+                AND IsActive = true
+                AND Email != null
+            ]) {
+                recipientEmails.add(user.Email);
+            }
+
+            if (recipientEmails.isEmpty()) {
+                return;
+            }
+
+            // Get email template
+            List<EmailTemplate> templates = [
+                SELECT Id
+                FROM EmailTemplate
+                WHERE DeveloperName = :UNMAPPED_PIN_TEMPLATE_DEV_NAME
+                LIMIT 1
+            ];
+
+            Messaging.SingleEmailMessage email =
+                new Messaging.SingleEmailMessage();
+
+            email.setToAddresses(recipientEmails);
+            email.setSaveAsActivity(false);
+
+            Id orgWideEmailAddressId = getOrgWideEmailAddressId();
+            if (orgWideEmailAddressId != null) {
+                email.setOrgWideEmailAddressId(orgWideEmailAddressId);
+            } else {
+                System.debug(LoggingLevel.WARN, 'Org-wide email address for label SFA_PJT_OrgWideEmaiDisplayName was not found. Using default sender.');
+            }
+
+            if (!templates.isEmpty()) {
+                email.setTemplateId(templates[0].Id);
+                email.setTargetObjectId(leadId);
+
+                // Lead should not receive the email.
+                // Actual recipients are the queue members.
+                email.setTreatTargetObjectAsRecipient(false);
+
+            } 
+
+            Messaging.sendEmail(
+                new List<Messaging.SingleEmailMessage>{ email }
+            );
+
+        } catch (Exception ex) {
+            Logger.error('Failed to send unmapped PIN notification email.', leadId, ex)
+                .addTag('Lead Creation');
+        } finally {
+            Logger.saveLog();
+        }
+    }
+
+
+    @TestVisible
+    private static String getUserFriendlyDmlMessage(DmlException ex) {
+        if (ex == null) {
+            return 'Unable to create Lead. Please contact your administrator.';
+        }
+
+        String rawMessage = ex.getNumDml() > 0 ? ex.getDmlMessage(0) : ex.getMessage();
+        if (String.isBlank(rawMessage)) {
+            return 'Unable to create Lead. Please contact your administrator.';
+        }
+
+        Integer codeCommaIndex = rawMessage.indexOf(',');
+        Integer fieldSectionIndex = rawMessage.lastIndexOf(', [' );
+        if (codeCommaIndex > -1 && fieldSectionIndex > codeCommaIndex) {
+            String trimmedMessage = rawMessage.substring(codeCommaIndex + 1, fieldSectionIndex).trim();
+            if (!String.isBlank(trimmedMessage)) {
+                return trimmedMessage;
+            }
+        }
+
+        return rawMessage;
+    }
+
+    private static void putIfCreateable(Lead target, Schema.SObjectField fieldRef, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (fieldRef.getDescribe().isCreateable()) {
+            target.put(fieldRef, value);
+        }
+    }
+}
