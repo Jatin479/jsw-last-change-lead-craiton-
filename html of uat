@@ -1,0 +1,351 @@
+<template>
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open slds-modal_large" aria-modal="true" aria-labelledby="leadModalHeading">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <lightning-button-icon
+                        class="slds-modal__close"
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        title="Close"
+                        onclick={handleCloseModal}>
+                    </lightning-button-icon>
+                    <h2 id="leadModalHeading" class="slds-text-heading_medium slds-hyphenate">New Lead</h2>
+                </header>
+
+                <div class="slds-modal__content slds-p-around_medium modal-content-scroll" id="lead-modal-content">
+                    <template if:true={isLoading}>
+                        <lightning-spinner size="medium" alternative-text="Loading"></lightning-spinner>
+                    </template>
+
+                    <template if:true={showProjectSections}>
+                <div class="section-title">General</div>
+                <lightning-layout multiple-rows class="slds-wrap slds-gutters">
+
+<!--                     <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="leadType"
+                            label="Lead Type"
+                            value={formData.leadType}
+                            onchange={handleInputChange}
+                            disabled>
+                        </lightning-input>
+                    </lightning-layout-item> -->
+                    
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="company"
+                            label="Project Name"
+                            value={formData.company}
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-input>
+                    </lightning-layout-item>
+                                        <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-combobox
+                            name="segmentType"
+                            label="Segment Type"
+                            value={formData.segmentType}
+                            options={segmentTypeOptions}
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-combobox>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input name="firstName" 
+                            label="First Name" 
+                            value={formData.firstName} 
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="lastName"
+                            label="Last Name"
+                            value={formData.lastName}
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input 
+                            name="phone" 
+                            type="tel" label="Phone" 
+                            value={formData.phone} 
+                            minlength="10"
+                            maxlength="10"
+                            pattern="[0-9]*"
+                            message-when-too-short="Phone number must be 10 digits."
+                            message-when-too-long="Phone number must be 10 digits."
+                            message-when-pattern-mismatch="Please enter numbers only."
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="mobilePhone"
+                            type="tel"
+                            label="Mobile"
+                            value={formData.mobilePhone}
+                            minlength="10"
+                            maxlength="10"
+                            pattern="[0-9]*"
+                            message-when-too-short="Mobile number must be 10 digits."
+                            message-when-too-long="Mobile number must be 10 digits."
+                            message-when-pattern-mismatch="Please enter numbers only."
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="contactNumber"
+                            type="tel"
+                            label="Additional Contact Number"
+                            value={formData.contactNumber}
+                            minlength="10"
+                            maxlength="10"
+                            pattern="[0-9]*"
+                            message-when-too-short="Contact number must be 10 digits."
+                            message-when-too-long="Contact number must be 10 digits."
+                            message-when-pattern-mismatch="Please enter numbers only."
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input name="email" type="email" label="Email" value={formData.email} onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    
+                    <!-- CHANGE: Is Key Account ? added, now occupies the old Lead Source position -->
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-combobox
+                            name="isKeyAccount"
+                            label="Is Key Account ?"
+                            value={formData.isKeyAccount}
+                            options={isKeyAccountOptions}
+                            onchange={handleInputChange}
+                            disabled={isKeyAccountSelectionDisabled}>
+                        </lightning-combobox>
+                    </lightning-layout-item>
+                    <!-- CHANGE: Lead Source moved here, to the right of Is Key Account ? -->
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-combobox
+                            name="leadSource"
+                            label="Lead Source"
+                            value={formData.leadSource}
+                            options={leadSourceOptions}
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-combobox>
+                    </lightning-layout-item>
+
+                    <!-- CHANGE: new conditional fields shown based on Is Key Account ? value -->
+                    <template if:true={isKeyParentProjectVisible}>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-record-picker
+                            label="Key Account"
+                            data-id="keyParentProjectPicker"
+                            object-api-name="Account"
+                            value={formData.keyParentProjectId}
+                            onchange={handleKeyParentProjectChange}
+                            required={isKeyParentProjectRequired}
+                            disabled={isRepaintingSegment}
+                            filter={keyParentProjectFilter}
+                            matching-info={accountMatchingInfo}
+                            display-info={accountDisplayInfo}>
+                        </lightning-record-picker>
+                    </lightning-layout-item>
+                    </template>
+                    <template if:true={isOtherKeyAccountVisible}>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="otherKeyAccount"
+                            label="Other Key Account"
+                            value={formData.otherKeyAccount}
+                            maxlength="225"
+                            required={isOtherKeyAccountRequired}
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    </template>
+
+                    <template if:true={isDealerRequired}>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-record-picker
+                            label="Dealer"
+                            data-id="dealerPicker"
+                            object-api-name="Account"
+                            value={formData.dealerId}
+                            required={isDealerRequired}
+                            onchange={handleDealerChange}
+                            filter={dealerFilter}
+                            matching-info={accountMatchingInfo}
+                            display-info={accountDisplayInfo}>
+                        </lightning-record-picker>
+                    </lightning-layout-item>
+                    </template>
+
+                    <template if:true={isContractorRequired}>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-record-picker
+                            label="Contractor"
+                            data-id="contractorPicker"
+                            object-api-name="Account"
+                            value={formData.contractorId}
+                            required={isContractorRequired}
+                            onchange={handleContractorChange}
+                            filter={contractorFilter}
+                            matching-info={accountMatchingInfo}
+                            display-info={accountDisplayInfo}>
+                        </lightning-record-picker>
+                    </lightning-layout-item>
+                    </template>
+                    <template if:true={isSpecifierRequired}>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-record-picker
+                            label="Specifier"
+                            data-id="specifierPicker"
+                            object-api-name="Account"
+                            value={formData.specifierId}
+                            required={isSpecifierRequired}
+                            onchange={handleSpecifierChange}
+                            filter={specifierFilter}
+                            matching-info={accountMatchingInfo}
+                            display-info={accountDisplayInfo}>
+                        </lightning-record-picker>
+                    </lightning-layout-item>
+                    </template>
+                </lightning-layout>
+
+                <div class="section-title slds-m-top_medium">Address</div>
+                <lightning-layout multiple-rows class="slds-wrap slds-gutters">
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="postalCode"
+                            label="Postal Code"
+                            value={formData.postalCode}
+                            minlength="6"
+                            maxlength="6"
+                            pattern="[0-9]*"
+                            message-when-too-short="Postal code must be 6 digits."
+                            message-when-too-long="Postal code must be 6 digits."
+                            message-when-pattern-mismatch="Please enter numbers only."
+                            onchange={handleInputChange}
+                            required>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input name="street" label="Street" value={formData.street} onchange={handleInputChange}></lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input
+                            name="landmark"
+                            label="Landmark"
+                            value={formData.landmark}
+                            onchange={handleInputChange}>
+                        </lightning-input>
+                    </lightning-layout-item>
+                    <!--
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input name="city" label="City" value={formData.city} onchange={handleInputChange}></lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-input name="district" label="District" value={formData.district} onchange={handleInputChange}></lightning-input>
+                    </lightning-layout-item>
+                    <lightning-layout-item size="12" medium-device-size="6" class="field-cell">
+                        <lightning-combobox
+                            name="stateCode"
+                            label="State"
+                            value={formData.stateCode}
+                            options={stateOptions}
+                            onchange={handleInputChange}>
+                        </lightning-combobox>
+                    </lightning-layout-item>
+                    -->
+                </lightning-layout>
+            </template>
+                </div>
+
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={handleCancel} class="slds-m-right_small" disabled={isLoading}></lightning-button>
+                    <lightning-button label="Save" variant="brand" onclick={handleSave} disabled={saveDisabled}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <template if:true={showTerritoryWarningModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open" aria-modal="true">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <h2 class="slds-text-heading_medium">Territory Validation</h2>
+                    <lightning-button-icon
+                        class="slds-modal__close"
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        title="Close"
+                        onclick={closeTerritoryWarning}>
+                    </lightning-button-icon>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <p>You have entered pin code and segment that do not belong to your territory. Do you want to reassign this lead to correct owner?</p>
+                    <template if:true={hasSuggestedCoOwner}>
+                        <p class="slds-m-top_small"><strong>Suggested Owner:</strong> {suggestedCoOwnerName}</p>
+                    </template>
+                    <template if:false={hasSuggestedCoOwner}>
+                        <template if:true={coOwnerSuggestionMessage}>
+                            <p class="slds-m-top_small">{coOwnerSuggestionMessage}</p>
+                        </template>
+                    </template>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="No" onclick={openSharingModal}  class="slds-m-right_small"></lightning-button>   
+                    <lightning-button label="Reassign" variant="brand" onclick={handleCoOwnerAssignSave}></lightning-button>
+                                 
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <template if:true={showSharingModal}>
+        <section role="dialog" tabindex="-1" class="slds-modal slds-fade-in-open" aria-modal="true">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <h2 class="slds-text-heading_medium">Share with Co-owner</h2>
+                    <lightning-button-icon
+                        class="slds-modal__close"
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        title="Close"
+                        onclick={closeSharingModal}>
+                    </lightning-button-icon>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <template if:true={hasSuggestedCoOwner}>
+                        <p class="slds-m-bottom_small"><strong>Suggested Co-owner:</strong> {suggestedCoOwnerName}</p>
+                    </template>
+                    <template if:false={hasSuggestedCoOwner}>
+                        <template if:true={coOwnerSuggestionMessage}>
+                            <p class="slds-m-bottom_small">{coOwnerSuggestionMessage}</p>
+                        </template>
+                    </template>
+                    <lightning-combobox
+                        name="sharingPercentageBand"
+                        label="Sharing Percentage Band"
+                        value={formData.sharingPercentageBand}
+                        options={sharingBandOptions}
+                        onchange={handleInputChange}
+                        required>
+                    </lightning-combobox>
+                </div>
+                <footer class="slds-modal__footer">
+                    <lightning-button label="Cancel" onclick={closeSharingModal} class="slds-m-right_small"></lightning-button>
+                    <lightning-button label="Save" variant="brand" onclick={handleCoOwnerShareSave} disabled={shareSaveDisabled}></lightning-button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+</template>
